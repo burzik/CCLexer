@@ -35,18 +35,20 @@ void showChars(char *txt[])
 }
 
 
-void key(char *keywords[])
+void key(const vector<string> &keywords)
 {
-	for (int i = 0; i < sizeof(keywords); i++) {
-		for (int j = 0; j < strlen(keywords[i]); j++)
-			cout << keywords[i][j];
-		cout << endl;
+	for (int i = 0; i < keywords.size(); i++) {
+		cout << keywords[i] << endl;
+	}
+
+	for (auto &keyword : keywords) {
+		cout << keyword << endl;
 	}
 }
 
-int main()
+int mainold()
 {
-	char *keywords[] = {
+	vector<string> keywords = {
 		"procedure",
 		"inherited",
 		"Word",
@@ -58,7 +60,7 @@ int main()
 		"if",
 		"then",
 		"nil" };
-	char *delims[] = {
+	vector<string> delims = {
 		"(",
 		")",
 		".",
@@ -111,7 +113,7 @@ int main()
 		{
 			if (sCurrentChar == " " || sCurrentChar == "\n")
 			{
-				for (int j = 0; j < sizeof(keywords) / 4; j++)
+				for (int j = 0; j < keywords.size(); j++)
 				{
 					if (keywords[j] == sCurrentWord)
 					{
