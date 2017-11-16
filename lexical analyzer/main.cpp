@@ -8,6 +8,14 @@
 
 using namespace std;
 
+enum class Type {
+	Unknown,
+	Keyword,
+	Identificator,
+	Delimiter,
+
+};
+
 struct info 
 {
 	string name;
@@ -437,11 +445,11 @@ int mainold()
 	//----
 
 	cout << "\n\n\tKey words:\n";
-	showName(totals, "KEYWORD");
+	showName(totals, Type::Keyword);
 	cout << "\n\tDelimeters:\n";
-	showName(totals, "DELIM");
+	showName(totals, Type::Delimiter);
 	cout << "\n\tIdentificators:\n";
-	showName(totals, "ID");
+	showName(totals, Type::Identificator);
 	cout << "\n\t\tTABLE:\n";
 	showRecords(totals);
 	

@@ -10,10 +10,29 @@
 
 using namespace std;
 
+enum class Type {
+	Error,
+	Keyword,
+	Identificator,
+	Delimiter,
+};
+
+ostream& operator<<(ostream &os, Type type)
+{
+	switch (type) {
+	default:
+	case Type::Error: os << "ERROR"; break;
+	case Type::Keyword: os << "KEYWORD"; break;
+	case Type::Identificator: os << "ID"; break;
+	case Type::Delimiter: os << "DELIM"; break;
+	}
+	return os;
+}
+
 struct info
 {
 	string name;
-	string type;
+	Type type;
 	int position;
 };
 
@@ -23,9 +42,9 @@ struct ifBlock
 	string state;
 };
 
-void writeRecord(string name, string type, int &position, vector<info> &rec);
+void writeRecord(string name, Type type, int &position, vector<info> &rec);
 void showRecords(vector<info> information);
-void showName(vector<info> information, string type);
+void showName(vector<info> information, Type type);
 
 bool checkSymbol(char symbol);
 void errorHandler(string name, int line, vector<info> &rec);
@@ -46,7 +65,7 @@ void key(const unordered_set<string> &keywords)
 
 bool isSpace(char c)
 {
-return c == ' ' || c == '\n' || c == '\r' || c == '\t';
+	return c == ' ' || c == '\n' || c == '\r' || c == '\t';
 }
 
 bool isAlpha(char c)
@@ -62,6 +81,51 @@ bool isSetOf(const string &value, const unordered_set<string> &s)
 bool isSetOf(char c, const unordered_set<string> &s)
 {
 	return s.find(string(1, c)) != s.end();
+}
+
+using info_iter = vector<info>::iterator;
+
+info_iter parseExpression(info_iter it, info_iter end)
+{
+	if (it == end)
+		return end;
+	return it;
+}
+
+info_iter parseStatement(info_iter it, info_iter end)
+{
+	return it;
+}
+
+info_iter parseIfStatement(info_iter it, info_iter end)
+{
+	if (it == end)
+		return end;
+	
+	if (it->type != Type::Keyword || it->name != "if") {
+		//error
+		return end;
+	}
+	++it;
+
+	it = parseExpression(it, end);
+
+	if (it->type != Type::Keyword || it->name != "then") {
+		//error
+		return end;
+	}
+	++it;
+
+	it = parseStatement(it, end);
+	return it;
+}
+
+info_iter parse(info_iter it, info_iter end)
+{
+	if (it == end)
+		return end;
+
+	return parseIfStatement(it, end);
 }
 
 int main()
@@ -130,7 +194,7 @@ int main()
 
 		if (source.eof())
 			break;
-		
+
 		if (isAlpha(source.peek()))
 		{
 			string word;
@@ -140,11 +204,11 @@ int main()
 
 			if (isSetOf(word, keywords)) {
 				// Keyword
-				writeRecord(word, "KEYWORD", keyPos, totals);
+				writeRecord(word, Type::Keyword, keyPos, totals);
 			}
 			else {
 				// Identificator
-				writeRecord(word, "ID", idPos, totals);
+				writeRecord(word, Type::Identificator, idPos, totals);
 			}
 		}
 		//else if (isDigit(source.peek())) {
@@ -157,7 +221,7 @@ int main()
 					delimiter += source.get();
 				}
 				// delimiter!
-				writeRecord(delimiter, "DELIM", delPos, totals);
+				writeRecord(delimiter, Type::Delimiter, delPos, totals);
 			}
 			else {
 				// WTF
@@ -167,6 +231,16 @@ int main()
 		}
 	}
 	source.close();
+
+	parse(totals.begin(), totals.end());
+
+	//for (auto &i : totals) {
+
+	//}
+
+	//for (vector<info>::reverse_iterator i = totals.rbegin(); i != totals.rend(); ++i) {
+
+	//}
 
 	// TODO
 	cout << "\nList of KEYWORDS\n";
@@ -181,18 +255,18 @@ int main()
 	//----
 
 	cout << "\n\n\tKey words:\n";
-	showName(totals, "KEYWORD");
+	showName(totals, Type::Keyword);
 	cout << "\n\tDelimeters:\n";
-	showName(totals, "DELIM");
+	showName(totals, Type::Delimiter);
 	cout << "\n\tIdentificators:\n";
-	showName(totals, "ID");
+	showName(totals, Type::Identificator);
 	cout << "\n\t\tTABLE:\n";
 	showRecords(totals);
 
 	if (hasError)
 	{
 		cout << "\nUnknown symbols:\n";
-		showName(totals, "ERROR");
+		showName(totals, Type::Error);
 	}
 
 	//new
@@ -205,7 +279,7 @@ int main()
 	return 0;
 }
 
-void showName(vector<info> information, string type)
+void showName(vector<info> information, Type type)
 {
 	cout << "\nPosition|\tName\t\n--------------------------------------------\n";
 	for (size_t i = 0; i < information.size(); i++)
@@ -232,12 +306,12 @@ void errorHandler(string name, int line, vector<info> &rec)
 {
 	info error;
 	error.name = name;
-	error.type = "ERROR";
+	error.type = Type::Error;
 	error.position = line;
 	rec.push_back(error);
 }
 
-void writeRecord(string name, string type, int &position, vector<info> &rec)
+void writeRecord(string name, Type type, int &position, vector<info> &rec)
 {
 	info information;
 	information.name = name;
