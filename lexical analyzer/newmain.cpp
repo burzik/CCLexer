@@ -188,6 +188,7 @@ int main()
 
 	if (ifExpr.size() != 0)
 		showRecords(ifExpr);
+	else cout << "\nNo errors";
 	
 	_getch();
 	return 0;
@@ -269,7 +270,7 @@ info_iter parseExpression(info_iter it, info_iter end, vector<info> &rec)
 	//check <>
 	if (it->type != Type::Delimiter || it->name != "<>") {
 		//error
-		errorHandler("If | Can't find '<>'", 0, rec);
+		errorHandler("If | Error near '<>'", 0, rec);
 	}
 	++it;
 	//check 2 elem
@@ -288,7 +289,7 @@ info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec)
 
 	if (it->type != Type::Delimiter || it->name != "(") {
 		//error
-		errorHandler("if | Can't find '('", 0, rec);
+		errorHandler("if | Error near '('", 0, rec);
 	}
 	++it;
 
@@ -299,7 +300,13 @@ info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec)
 		{
 			if (it->type != Type::Delimiter && it->name != ",")
 				errorHandler("If | Error near '" + it->name + "'", 0, rec);
-			else hasSeparator = true;
+			else if (it->name == "(")
+			{
+				errorHandler("If | Error near '" + it->name + "'", 0, rec);
+				while (it->name == "(")
+					it++;
+			}
+				else hasSeparator = true;
 		}
 		else if (!hasSeparator)
 		{
@@ -339,7 +346,8 @@ info_iter parseStatement(info_iter it, info_iter end, vector<info> &rec)
 	//check dot
 	if (it->type != Type::Delimiter || it->name != ".") {
 		//error
-		errorHandler("If | Error near '" + it->name + "'", 0, rec);
+		errorHandler("If | Error '.' near '" + it->name + ".'", 0, rec);
+		return end;
 	}
 	++it;
 	//check func
@@ -383,7 +391,7 @@ info_iter parseIfStatement(info_iter it, info_iter end, vector<info> &rec)
 
 	if (it->type != Type::Keyword || it->name != "then") {
 		//error
-		errorHandler("If | Can't find then", 0, rec);
+		errorHandler("If | Can't find 'then'", 0, rec);
 		return end;
 	}
 	++it;
