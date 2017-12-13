@@ -3,12 +3,65 @@
 #include <stdio.h>
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <unordered_set>
 #include "newmain.h"
 
 using namespace std;
+
+struct chetverka {
+	string label;
+	string instruction;
+	string op1, op2, res;
+
+	chetverka(const string &label, const string &instruction, const string &op1, const string &op2, const string res)
+		: label(label)
+		, instruction(instruction)
+		, op1(op1)
+		, op2(op2)
+		, res(res)
+	{
+		count++;
+	}
+
+	chetverka(const string &instruction, const string &op1 = "", const string &op2 = "", const string res = "")
+		: instruction(instruction)
+		, op1(op1)
+		, op2(op2)
+		, res(res)
+	{
+		stringstream ss;
+		ss << count;
+		label = ss.str();
+		count++;
+
+	}
+
+	static size_t count;
+};
+
+size_t chetverka::count = 0;
+
+ostream& operator<<(ostream &os, const chetverka &ch) {
+	return os
+		<< setw(8) << left << ch.label
+		<< setw(8) << right << ch.instruction << ","
+		<< setw(16) << right << ch.op1 << ","
+		<< setw(16) << right << ch.op2 << ","
+		<< setw(8) << right << ch.res;
+}
+
+vector<chetverka> instructions;
+
+size_t tmp_var_count = 0;
+
+string get_new_tmp() {
+	stringstream ss;
+	ss << "T" << ++tmp_var_count;
+	return ss.str();
+}
 
 enum class Type {
 	Error,
@@ -56,7 +109,7 @@ bool isSetOf(char c, const unordered_set<string> &s);
 
 using info_iter = vector<info>::iterator;
 
-info_iter parseExpression(info_iter it, info_iter end, vector<info> &rec);
+pair<info_iter, string> parseExpression(info_iter it, info_iter end, vector<info> &rec);
 info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec);
 info_iter parseStatement(info_iter it, info_iter end, vector<info> &rec);
 info_iter parseIfStatement(info_iter it, info_iter end, vector<info> &rec);
@@ -188,7 +241,17 @@ int main()
 
 	if (ifExpr.size() != 0)
 		showRecords(ifExpr);
-	else cout << "\nNo errors";
+	else cout << "\nNo errors\n";
+
+	cout
+		<< setw(8) << left << "LABEL"
+		<< setw(8) << right << "INSTR" << ","
+		<< setw(16) << right << "OP1" << ","
+		<< setw(16) << right << "OP2" << ","
+		<< setw(8) << right << "RES\n";
+	for (auto &ch : instructions) {
+		cout << ch << '\n';
+	}
 	
 	_getch();
 	return 0;
@@ -257,29 +320,33 @@ bool isSetOf(char c, const unordered_set<string> &s)
 	return s.find(string(1, c)) != s.end();
 }
 
-info_iter parseExpression(info_iter it, info_iter end, vector<info> &rec)
+pair<info_iter, string> parseExpression(info_iter it, info_iter end, vector<info> &rec)
 {
 	if (it == end)
-		return end;
+		return make_pair(end, "");
 	//check 1 elem
 	if (it->type != Type::Keyword && it->type != Type::Identificator) {
 		//error
 		errorHandler("If | Error near '" + it->name + "'", 0, rec);
 	}
-	++it;
+	auto op1 = it++;
 	//check <>
 	if (it->type != Type::Delimiter || it->name != "<>") {
 		//error
 		errorHandler("If | Error near '<>'", 0, rec);
 	}
-	++it;
+	auto instr = it++;
 	//check 2 elem
 	if (it->type != Type::Keyword && it->type != Type::Identificator) {
 		//error
 		errorHandler("If | Error near '" + it->name + "'", 0, rec);
 	}
-	++it;
-	return it;
+	auto op2 = it++;
+
+	auto tmp_var = get_new_tmp();
+	instructions.push_back(chetverka("NE", op1->name, op2->name, tmp_var));
+
+	return make_pair(it, tmp_var);
 }
 
 info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec)
@@ -298,6 +365,7 @@ info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec)
 	{
 		if (it->type != Type::Keyword && it->type != Type::Identificator)
 		{
+			
 			if (it->type != Type::Delimiter && it->name != ",")
 				errorHandler("If | Error near '" + it->name + "'", 0, rec);
 			else if (it->name == "(")
@@ -307,6 +375,8 @@ info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec)
 					it++;
 			}
 				else hasSeparator = true;
+
+				
 		}
 		else if (!hasSeparator)
 		{
@@ -315,7 +385,10 @@ info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec)
 		else
 		{
 			hasSeparator = false;
+			auto label = it->name;
+			instructions.push_back(chetverka("push", label, "T2", ""));
 		}
+		
 		++it;
 		if (it == end)
 		{
@@ -342,7 +415,11 @@ info_iter parseStatement(info_iter it, info_iter end, vector<info> &rec)
 		//error
 		errorHandler("If | Error near '" + it->name + "'", 0, rec);
 	}
+
+	auto label = it->name;
 	++it;
+	
+
 	//check dot
 	if (it->type != Type::Delimiter || it->name != ".") {
 		//error
@@ -355,10 +432,14 @@ info_iter parseStatement(info_iter it, info_iter end, vector<info> &rec)
 		//error
 		errorHandler("If | Error near '" + it->name + "'", 0, rec);
 	}
+
+	auto label2 = it->name;
+	//instructions.push_back(chetverka("func", label, label2, "T2"));
+
 	++it;
 	//check variables
 
-
+	//instructions.push_back(chetverka("push", label));
 	it = parseParamList(it, end, rec);
 	if (it == end)
 	{
@@ -371,6 +452,9 @@ info_iter parseStatement(info_iter it, info_iter end, vector<info> &rec)
 		errorHandler("If | Can't find ';'", 0, rec);
 	}
 
+	//auto label = it->name;
+	instructions.push_back(chetverka("call", label, label2, "T2"));
+
 	++it;
 	return it;
 }
@@ -380,14 +464,19 @@ info_iter parseIfStatement(info_iter it, info_iter end, vector<info> &rec)
 	if (it == end)
 		return end;
 
+	auto label_end = "5";
+
 	if (it->type != Type::Keyword || it->name != "if") {
 		//error
 		errorHandler("If |Can't find if", 0, rec);
 		return end;
 	}
+	//instructions.push_back(chetverka("blcif"));
 	++it;
 
-	it = parseExpression(it, end, rec);
+	auto [it, tmp_var] = parseExpression(it, end, rec);
+
+	instructions.push_back(chetverka("brz", tmp_var, label_end));
 
 	if (it->type != Type::Keyword || it->name != "then") {
 		//error
@@ -397,6 +486,9 @@ info_iter parseIfStatement(info_iter it, info_iter end, vector<info> &rec)
 	++it;
 
 	it = parseStatement(it, end, rec);
+
+	instructions.push_back(chetverka(label_end, "nop", "", "", ""));
+
 	return it;
 }
 
