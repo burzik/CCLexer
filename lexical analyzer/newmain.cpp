@@ -68,6 +68,7 @@ enum class Type {
 	Keyword,
 	Identificator,
 	Delimiter,
+	Digit,
 };
 
 ostream& operator<<(ostream &os, Type type)
@@ -78,6 +79,7 @@ ostream& operator<<(ostream &os, Type type)
 	case Type::Keyword: os << "KEYWORD"; break;
 	case Type::Identificator: os << "ID"; break;
 	case Type::Delimiter: os << "DELIM"; break;
+	case Type::Digit: os << "DIGIT"; break;
 	}
 	return os;
 }
@@ -104,6 +106,7 @@ void showSet(const unordered_set<string> &keywords);
 
 bool isSpace(char c);
 bool isAlpha(char c);
+bool isDigit(char c);
 bool isSetOf(const string &value, const unordered_set<string> &s);
 bool isSetOf(char c, const unordered_set<string> &s);
 
@@ -112,23 +115,27 @@ using info_iter = vector<info>::iterator;
 pair<info_iter, string> parseExpression(info_iter it, info_iter end, vector<info> &rec);
 info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec);
 info_iter parseStatement(info_iter it, info_iter end, vector<info> &rec);
+info_iter parseElseStatement(info_iter it, info_iter end, vector<info> &rec);
 info_iter parseIfStatement(info_iter it, info_iter end, vector<info> &rec);
 info_iter parse(info_iter it, info_iter end, vector<info> &rec);
 
 int main()
 {
 	unordered_set<string> keywords = {
-		"procedure",
-		"inherited",
-		"Word",
-		"Boolean",
+		"constructor",
+		"var",
+		"TStream",
 		"Begin",
 		"End",
-		"case",
-		"of",
+		"inherited",
+		"SizeOf",
+		"Word",
+		"Boolean",
 		"if",
+		"nil",
 		"then",
-		"nil" };
+		"True",
+		"else" };
 
 	unordered_set<string> delims = {
 		"(",
@@ -138,20 +145,23 @@ int main()
 		":",
 		";",
 		"<",
-		"<>" };
+		"<>",
+		"+",
+		":="};
 
 	vector<info> totals;
 	vector<info> ifExpr;
 	int keyPos = 0;
 	int idPos = 0;
 	int delPos = 0;
+	int digPos = 0;
 	int line = 1;
 	bool hasError = false;
 	char c;
 	char filename[256] = "input.txt";
 
-	//cout << "Enter the name of an existing text file: ";
-	//cin.get(filename, 256);  
+	cout << "Enter the name of an existing text file: ";
+	cin.get(filename, 256);  
 	ifstream source(filename);
 	if (!source)
 	{
@@ -162,7 +172,6 @@ int main()
 
 	while (!source.eof())
 	{
-		//Skip spaces
 		while (isSpace(source.peek())) {
 			char c = source.get();
 			if (c == '\n')
@@ -172,30 +181,30 @@ int main()
 		if (source.eof())
 			break;
 
-		//check keyword or identificator
 		if (isAlpha(source.peek()))
 		{
 			string word;
 			do 
 			{
 				word += source.get();
-			} while (isAlpha(source.peek()));
+			} while (isAlpha(source.peek()) || isDigit(source.peek()));
 
 			if (isSetOf(word, keywords))
 			{
-				//Keyword
 				writeRecord(word, Type::Keyword, keyPos, totals);
 			}
 			else 
 			{
-				//Identificator
 				writeRecord(word, Type::Identificator, idPos, totals);
 			}
 		}
-		//else if (isDigit(source.peek())) { }
+		else if (isDigit(source.peek())) 
+		{
+			string digit(1, char(source.get()));
+			writeRecord(digit, Type::Digit, digPos, totals);
+		}
 		else 
 		{
-			//Check delimeter
 			if (isSetOf(source.peek(), delims))
 			{
 				string delimiter(1, char(source.get()));
@@ -207,7 +216,6 @@ int main()
 			}
 			else 
 			{
-				// Handle unknown symbol
 				errorHandler(string(1, source.peek()), line, totals);
 				hasError = true;
 				source.get();
@@ -216,32 +224,38 @@ int main()
 	}
 	source.close();
 	
-	//parse logical blocks
 	parse(totals.begin(), totals.end(), ifExpr);
 
-	//Show info
-	cout << "\nList of KEYWORDS\n";
+	cout << "\nKeywords vocabulary:\n";
 	showSet(keywords);
-	cout << "\nList of DELIMETERS\n";
+
+	cout << "\nDelimiters vocabulary\n";
 	showSet(delims);
-	cout << "\n\n\tKey words:\n";
+
+	cout << "\n\n\tFounded key words:\n";
 	showName(totals, Type::Keyword);
-	cout << "\n\tDelimeters:\n";
+
+	cout << "\n\tFounded delimeters:\n";
 	showName(totals, Type::Delimiter);
-	cout << "\n\tIdentificators:\n";
+
+	cout << "\n\tFounded identificators:\n";
 	showName(totals, Type::Identificator);
-	cout << "\n\t\tTABLE:\n";
+
+	cout << "\n\tFounded digits:\n";
+	showName(totals, Type::Digit);
+
+	cout << "\n\t\tLexical analysis:\n";
 	showRecords(totals);
 
 	if (hasError)
 	{
-		cout << "\nUnknown symbols:\n";
+		cout << "\nFounded typo:\n";
 		showName(totals, Type::Error);
 	}
 
 	if (ifExpr.size() != 0)
 		showRecords(ifExpr);
-	else cout << "\nNo errors\n";
+	else cout << "\nSyntax Errors Not Founds\n\n";
 
 	cout
 		<< setw(8) << left << "LABEL"
@@ -259,19 +273,19 @@ int main()
 
 void showName(vector<info> information, Type type)
 {
-	cout << "\nPosition|\tName\t\n--------------------------------------------\n";
+	cout << "\nPosition\tName\t\n";
 	for (size_t i = 0; i < information.size(); i++)
 		if (type == information[i].type)
-			cout << information[i].position << "\t|\t" << information[i].name << endl;
-	cout << "--------------------------------------------\n";
+			cout << information[i].position << "\t\t" << information[i].name << endl;
+	cout << "\n";
 }
 
 void showRecords(vector<info> information)
 {
-	cout << "\nType\t|    Position\t|\tName\n--------------------------------------------\n";
+	cout << "\nType\t    Position\t\tName\n";
 	for (size_t j = 0; j < information.size(); j++)
-		cout << information[j].type << "\t|\t" << information[j].position << "\t|\t" << information[j].name << endl;
-	cout << "--------------------------------------------\n";
+		cout << information[j].type << "\t\t" << information[j].position << "\t\t" << information[j].name << endl;
+	cout << "\n";
 }
 
 void showSet(const unordered_set<string> &keywords)
@@ -310,6 +324,11 @@ bool isAlpha(char c)
 	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
 
+bool isDigit(char c)
+{
+	return (c >= '0' && c <= '9');
+}
+
 bool isSetOf(const string &value, const unordered_set<string> &s)
 {
 	return s.find(value) != s.end();
@@ -324,21 +343,15 @@ pair<info_iter, string> parseExpression(info_iter it, info_iter end, vector<info
 {
 	if (it == end)
 		return make_pair(end, "");
-	//check 1 elem
 	if (it->type != Type::Keyword && it->type != Type::Identificator) {
-		//error
 		errorHandler("If | Error near '" + it->name + "'", 0, rec);
 	}
 	auto op1 = it++;
-	//check <>
 	if (it->type != Type::Delimiter || it->name != "<>") {
-		//error
 		errorHandler("If | Error near '<>'", 0, rec);
 	}
 	auto instr = it++;
-	//check 2 elem
 	if (it->type != Type::Keyword && it->type != Type::Identificator) {
-		//error
 		errorHandler("If | Error near '" + it->name + "'", 0, rec);
 	}
 	auto op2 = it++;
@@ -355,7 +368,6 @@ info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec)
 		return end;
 
 	if (it->type != Type::Delimiter || it->name != "(") {
-		//error
 		errorHandler("if | Error near '('", 0, rec);
 	}
 	++it;
@@ -386,7 +398,7 @@ info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec)
 		{
 			hasSeparator = false;
 			auto label = it->name;
-			instructions.push_back(chetverka("push", label, "T2", ""));
+			instructions.push_back(chetverka("PUSH", label, "", "T2"));
 		}
 		
 		++it;
@@ -398,7 +410,6 @@ info_iter parseParamList(info_iter it, info_iter end, vector<info> &rec)
 	}
 
 	if (it->type != Type::Delimiter || it->name != ")") {
-		//error
 		errorHandler("If | Can't find ')'", 0, rec);
 		return it;
 	}
@@ -410,36 +421,43 @@ info_iter parseStatement(info_iter it, info_iter end, vector<info> &rec)
 {
 	if (it == end)
 		return end;
-	//check 1 elem
 	if (it->type != Type::Identificator) {
-		//error
 		errorHandler("If | Error near '" + it->name + "'", 0, rec);
 	}
 
 	auto label = it->name;
 	++it;
-	
 
-	//check dot
-	if (it->type != Type::Delimiter || it->name != ".") {
-		//error
-		errorHandler("If | Error '.' near '" + it->name + ".'", 0, rec);
+	if (it->type != Type::Delimiter || it->name != ":=") {
+		errorHandler("Error near'" + it->name + "'", 0, rec);
 		return end;
 	}
 	++it;
-	//check func
-	if (it->type != Type::Identificator) {
-		//error
-		errorHandler("If | Error near '" + it->name + "'", 0, rec);
+
+	if (it->type != Type::Keyword) {
+		errorHandler("Error near '" + it->name + "'", 0, rec);
 	}
 
 	auto label2 = it->name;
-	//instructions.push_back(chetverka("func", label, label2, "T2"));
+	instructions.push_back(chetverka(":=", label2, "", label));
 
 	++it;
-	//check variables
+	return it;
+}
 
-	//instructions.push_back(chetverka("push", label));
+info_iter parseElseStatement(info_iter it, info_iter end, vector<info> &rec)
+{
+	if (it == end)
+		return end;
+
+	if (it->type != Type::Identificator) 
+	{
+		errorHandler("If | Error near '" + it->name + "'", 0, rec);
+	}
+	
+	auto label = it->name;
+	++it;
+
 	it = parseParamList(it, end, rec);
 	if (it == end)
 	{
@@ -447,13 +465,12 @@ info_iter parseStatement(info_iter it, info_iter end, vector<info> &rec)
 		return end;
 	}
 
-	if (it->type != Type::Delimiter || it->name != ";") {
-		//error
+	if (it->type != Type::Delimiter || it->name != ";")
+	{
 		errorHandler("If | Can't find ';'", 0, rec);
 	}
 
-	//auto label = it->name;
-	instructions.push_back(chetverka("call", label, label2, "T2"));
+	instructions.push_back(chetverka("CALL", label, "T2", ""));
 
 	++it;
 	return it;
@@ -466,20 +483,18 @@ info_iter parseIfStatement(info_iter it, info_iter end, vector<info> &rec)
 
 	auto label_end = "5";
 
-	if (it->type != Type::Keyword || it->name != "if") {
-		//error
+	if (it->type != Type::Keyword || it->name != "if")
+	{
 		errorHandler("If |Can't find if", 0, rec);
 		return end;
 	}
-	//instructions.push_back(chetverka("blcif"));
 	++it;
 
 	auto [it, tmp_var] = parseExpression(it, end, rec);
 
-	instructions.push_back(chetverka("brz", tmp_var, label_end));
+	instructions.push_back(chetverka("BRZ", tmp_var, label_end));
 
 	if (it->type != Type::Keyword || it->name != "then") {
-		//error
 		errorHandler("If | Can't find 'then'", 0, rec);
 		return end;
 	}
@@ -487,8 +502,18 @@ info_iter parseIfStatement(info_iter it, info_iter end, vector<info> &rec)
 
 	it = parseStatement(it, end, rec);
 
-	instructions.push_back(chetverka(label_end, "nop", "", "", ""));
+	
 
+
+	if (it->type != Type::Keyword || it->name != "else") {
+		errorHandler("If | Can't find 'else'", 0, rec);
+		return end;
+	}
+	++it;
+
+	it = parseElseStatement(it, end, rec);
+
+	instructions.push_back(chetverka(label_end, "NOP", "", "", ""));
 	return it;
 }
 
@@ -496,6 +521,5 @@ info_iter parse(info_iter it, info_iter end, vector<info> &rec)
 {
 	if (it == end)
 		return end;
-	//while (it->name != "if") ++it;
 	return parseIfStatement(it, end, rec);
 }

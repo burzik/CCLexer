@@ -1,1 +1,3 @@
-if HScrollBar <> nil then HScrollBar.SetState(sfVisible, Enable);
+	if Buffer <> nil then IsValid := True
+		else
+		EditorDiaglog(edOutOfMemory, nil);
